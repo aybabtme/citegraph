@@ -35,11 +35,13 @@ func init() {
 }
 
 func getAPIKey() url.Values {
-	if keyRotation >= len(apiKeys)-1 {
-		keyRotation = 0
-	}
+
 	if !apiKeys[keyRotation].HasLeft() {
 		keyRotation++
+	}
+
+	if keyRotation >= len(apiKeys)-1 {
+		keyRotation = 0
 	}
 
 	key, err := apiKeys[keyRotation].Use()
