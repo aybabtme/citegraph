@@ -1,14 +1,12 @@
 package client
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 )
 
@@ -18,32 +16,40 @@ const (
 )
 
 var (
-	apiKeys     []string
+	apiKeys     []APIKey
 	keyRotation int
 )
 
 func init() {
 	log.Printf("Loading API keys from file `%s`", apiKeysFilename)
-	f, err := os.Open(apiKeysFilename)
+	var err error
+	apiKeys, err = LoadAPIKeysFromFile(apiKeysFilename)
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		apiKeys = append(apiKeys, scanner.Text())
+	log.Printf("Done, found %d keys\n", len(apiKeys))
+	for _, key := range apiKeys {
+		log.Printf("key `%s`, %d perDay, %d perSec",
+			key.Key, key.CallPerDay, key.CallPerSecond)
 	}
-	log.Printf("Done, found %d keys:\n%v", len(apiKeys), apiKeys)
 }
 
 func getAPIKey() url.Values {
-	if keyRotation >= len(apiKeys) {
+	if keyRotation >= len(apiKeys)-1 {
 		keyRotation = 0
 	}
-	defer func() { keyRotation++ }()
+	if !apiKeys[keyRotation].HasLeft() {
+		keyRotation++
+	}
+
+	key, err := apiKeys[keyRotation].Use()
+	if err != nil {
+		return nil
+	}
 
 	val := url.Values{}
-	val.Set("api_key", apiKeys[keyRotation])
+
+	val.Set("api_key", key)
 	return val
 }
 
